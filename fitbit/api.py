@@ -15,7 +15,7 @@ from requests_oauthlib import OAuth2Session
 from . import exceptions
 from .compliance import fitbit_compliance_fix
 from .utils import curry
-
+import sys
 
 class FitbitOauth2Client(object):
     API_ENDPOINT = "https://api.fitbit.com"
@@ -66,12 +66,11 @@ class FitbitOauth2Client(object):
 
         try:
             response = self.session.request(method, url, **kwargs)
-
             # If our current token has no expires_at, or something manages to slip
             # through that check
             if response.status_code == 401:
                 d = json.loads(response.content.decode('utf8'))
-                if d['errors'][0]['errorType'] == 'expired_token':
+                if d['errors'][0]['errorType'] == 'TokenExpiredError':
                     self.refresh_token()
                     response = self.session.request(method, url, **kwargs)
 
@@ -254,7 +253,6 @@ class Fitbit(object):
 
         method = kwargs.get('method', 'POST' if 'data' in kwargs else 'GET')
         response = self.client.make_request(*args, **kwargs)
-
         if response.status_code == 202:
             return True
         if method == 'DELETE':
@@ -1011,3 +1009,7 @@ class Fitbit(object):
             collection='/{0}'.format(collection) if collection else ''
         )
         return self.make_request(url)
+
+    def log_food(self, json, method='POST'):
+        base_url = "https://api.fitbit.com/1/user/-/foods/log.json"
+        return self.make_request(base_url, data=json)
